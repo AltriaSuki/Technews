@@ -9,6 +9,10 @@
  */
 
 import * as hn from '../adapters/hn.js';
+import * as github from '../adapters/github.js';
+import * as reddit from '../adapters/reddit.js';
+import * as ph from '../adapters/producthunt.js';
+import * as arxiv from '../adapters/arxiv.js';
 import { settingsStore } from './settings_store.js';
 
 /**
@@ -18,10 +22,10 @@ import { settingsStore } from './settings_store.js';
  */
 const ALL_ADAPTERS = {
   hackernews: hn,
-  // github: github,       // Phase 1
-  // reddit: reddit,       // Phase 1
-  // producthunt: ph,      // Phase 1
-  // arxiv: arxiv,         // Phase 1
+  github: github,
+  reddit: reddit,
+  producthunt: ph,
+  arxiv: arxiv,
 };
 
 /**

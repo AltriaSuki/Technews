@@ -25,7 +25,7 @@ export function createNewsCard(story, callbacks = {}) {
   card.innerHTML = `
     <div class="card-content">
       <div class="card-meta-top">
-        <span class="source-badge">${esc(domain)}</span>
+        <span class="source-badge" data-source="${story.source}">${esc(story.source)}</span>
         <span class="score">&#9650; ${story.score}</span>
       </div>
       <h2 class="card-title">
@@ -40,11 +40,11 @@ export function createNewsCard(story, callbacks = {}) {
     </div>
     <div class="card-actions">
       ${story.discussionUrl
-        ? `<a href="${esc(story.discussionUrl)}" target="_blank" class="comments-link">
+      ? `<a href="${esc(story.discussionUrl)}" target="_blank" class="comments-link">
             ${story.comments} comments
           </a>`
-        : `<span class="comments-link">${story.comments} comments</span>`
-      }
+      : `<span class="comments-link">${story.comments} comments</span>`
+    }
     </div>
   `;
 

@@ -52,6 +52,32 @@
     border-radius: 100px;
     font-weight: 500;
     letter-spacing: 0.02em;
+    text-transform: capitalize;
+}
+
+.source-badge[data-source="hackernews"] {
+    color: #ff6600;
+    background: rgba(255, 102, 0, 0.1);
+}
+
+.source-badge[data-source="github"] {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.source-badge[data-source="reddit"] {
+    color: #ff4500;
+    background: rgba(255, 69, 0, 0.1);
+}
+
+.source-badge[data-source="producthunt"] {
+    color: #da552f;
+    background: rgba(218, 85, 47, 0.1);
+}
+
+.source-badge[data-source="arxiv"] {
+    color: #b33939;
+    background: rgba(179, 57, 57, 0.1);
 }
 
 .score {

@@ -12,7 +12,7 @@
 import { createStore } from '../infrastructure/storage.js';
 
 const DEFAULT_SETTINGS = Object.freeze({
-  enabledSources: ['hackernews'],
+  enabledSources: ['hackernews', 'github', 'reddit', 'producthunt', 'arxiv'],
   trendingWindowDays: 7,
   trendingSpikeThreshold: 2,
   storiesPerSource: 30,
