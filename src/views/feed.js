@@ -11,13 +11,11 @@
 import { fetchAll } from '../services/aggregator.js';
 import { recordStories, getTrending } from '../services/trend_engine.js';
 import { settingsStore } from '../services/settings_store.js';
+import { markAsRead } from '../services/knowledge_store.js';
 import { createNewsCard } from '../components/NewsCard.js';
+import { createTrendingBar } from '../components/TrendingBar.js';
 
-/**
- * Category keyword mappings for feed filtering.
- * Categories filter stories by checking if story.tags contain
- * any of the listed keywords.
- */
+// ... (Categories definition) ...
 const CATEGORIES = {
   all: [],
   AI: [
@@ -28,7 +26,7 @@ const CATEGORIES = {
   ],
   Web: [
     'css', 'html', 'javascript', 'typescript', 'react', 'vue', 'svelte',
-    'web', 'browser', 'frontend', 'backend', 'node', 'next.js', 'api',
+    'web-development', 'browser', 'frontend', 'backend', 'node', 'next.js', 'api',
     'http', 'wasm', 'webassembly',
   ],
   Hardware: [
@@ -62,14 +60,16 @@ export const FeedView = {
 
     try {
       state.stories = await fetchAll();
+
+      // 1. Process Trends from new stories
       recordStories(state.stories);
 
-      const settings = settingsStore.getAll();
-      state.trending = getTrending({
-        windowDays: settings.trendingWindowDays,
-        spikeThreshold: settings.trendingSpikeThreshold,
-      });
+      // 2. Get latest trends
+      // We read settings just in case threshold changed
+      // const settings = settingsStore.getAll();
+      state.trending = getTrending();
 
+      // 3. Render full view
       render();
     } catch (error) {
       console.error('[view:feed] Init failed:', error);
@@ -101,7 +101,7 @@ function renderShell() {
         `).join('')}
       </div>
     </div>
-    <div class="trending-bar"></div>
+    <div class="trending-bar-container"></div>
     <div class="news-grid">
       <div class="loading-state">Loading latest tech news...</div>
     </div>
@@ -161,24 +161,27 @@ function render() {
  * Render the trending bar. Shows nothing if no trends are detected.
  */
 function renderTrending() {
-  const bar = container.querySelector('.trending-bar');
-  if (!bar) return;
+  const barContainer = container.querySelector('.trending-bar-container');
+  if (!barContainer) return;
+
+  barContainer.innerHTML = '';
 
   if (state.trending.length === 0) {
-    bar.innerHTML = '';
     return;
   }
 
-  bar.innerHTML = `
-    <div class="trending-content">
-      <span class="trending-label">Trending</span>
-      ${state.trending.slice(0, 8).map(t => `
-        <button class="trending-chip" data-keyword="${t.keyword}">
-          ${t.keyword} <span class="trending-pct">+${t.changePercent}%</span>
-        </button>
-      `).join('')}
-    </div>
-  `;
+  const trendingBar = createTrendingBar({
+    onSelect: (keyword) => {
+      // Set search input
+      const searchInput = document.getElementById('search-input');
+      if (searchInput) {
+        searchInput.value = keyword;
+        searchInput.dispatchEvent(new Event('input'));
+      }
+    }
+  });
+
+  barContainer.appendChild(trendingBar);
 }
 
 /**
@@ -197,7 +200,9 @@ function renderStories() {
 
   grid.innerHTML = '';
   for (const story of filtered) {
-    grid.appendChild(createNewsCard(story));
+    grid.appendChild(createNewsCard(story, {
+      onRead: (s) => markAsRead(s)
+    }));
   }
 }
 

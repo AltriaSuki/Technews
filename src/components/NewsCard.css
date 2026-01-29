@@ -87,10 +87,21 @@
 
 .card-title {
     font-family: var(--font-heading);
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     line-height: 1.4;
-    margin-bottom: var(--space-md);
+    margin-bottom: var(--space-sm);
     flex-grow: 1;
+}
+
+.story-link {
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: color 0.2s ease;
+}
+
+.story-link:hover {
+    color: hsl(var(--accent-primary));
 }
 
 .card-title a {
@@ -101,11 +112,28 @@
     color: hsl(var(--accent-secondary));
 }
 
+.card-tags {
+    display: flex;
+    gap: 6px;
+    margin-bottom: var(--space-sm);
+    flex-wrap: wrap;
+}
+
+.tag-badge {
+    font-size: 0.75rem;
+    color: hsl(var(--text-secondary));
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--glass-border);
+}
+
 .card-meta-bottom {
     display: flex;
     justify-content: space-between;
     font-size: 0.85rem;
     color: hsl(var(--text-secondary));
+    margin-top: auto;
     margin-bottom: var(--space-md);
 }
 

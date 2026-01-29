@@ -29,10 +29,13 @@ export function createNewsCard(story, callbacks = {}) {
         <span class="score">&#9650; ${story.score}</span>
       </div>
       <h2 class="card-title">
-        <a href="${esc(storyUrl)}" target="_blank" rel="noopener noreferrer">
+        <a href="${esc(storyUrl)}" target="_blank" rel="noopener noreferrer" class="story-link">
           ${esc(story.title)}
         </a>
       </h2>
+      <div class="card-tags">
+        ${(story.tags || []).slice(0, 3).map(tag => `<span class="tag-badge">#${esc(tag)}</span>`).join('')}
+      </div>
       <div class="card-meta-bottom">
         <span class="author">by ${esc(story.author)}</span>
         <span class="time">${esc(timeAgo)}</span>
@@ -47,6 +50,14 @@ export function createNewsCard(story, callbacks = {}) {
     }
     </div>
   `;
+
+  // Attach event listeners
+  const link = card.querySelector('.story-link');
+  if (link && callbacks.onRead) {
+    link.addEventListener('click', () => {
+      callbacks.onRead(story);
+    });
+  }
 
   return card;
 }

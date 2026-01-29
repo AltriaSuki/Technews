@@ -1,121 +1,119 @@
 /**
- * Trend engine — keyword frequency tracking and spike detection.
+ * Trend Engine Service
  *
- * Owns: techpulse_keyword_history localStorage key.
- * No other module may read or write this key.
+ * Tracks keyword frequency over time to identify what's "trending".
  *
- * Uses keyword_engine for all keyword processing.
- * Must not implement its own tokenization or normalization.
+ * Responsibilities:
+ * - Record daily keyword counts from newly fetched stories.
+ * - Detect spikes by comparing Today's Count vs. 7-Day Average.
+ * - Persist history to localStorage (lightweight).
  */
 
 import { createStore } from '../infrastructure/storage.js';
+import { settingsStore } from './settings_store.js';
 
-const RETENTION_DAYS = 30;
+// Configuration
+const STORAGE_KEY = 'keyword_history';
 
-const store = createStore('keyword_history', {
+// Store definition
+const store = createStore(STORAGE_KEY, {
   version: 1,
-  migrations: {},
-  defaultValue: () => ({ _version: 1, days: {} }),
+  defaultValue: () => ({
+    history: {}, // { "dateStr": { "keyword": count } }
+    lastProcessed: 0, // Timestamp of last run
+  }),
 });
 
 /**
- * Get today's date key in YYYY-MM-DD format.
- * @private
- */
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/**
- * Record keyword occurrences from a batch of stories.
- * Call this each time new stories are fetched.
- *
- * Keywords are read from story.tags (already extracted by adapters
- * via keyword_engine). This function does NOT re-tokenize titles.
+ * Record keywords from a batch of stories.
+ * Call this after fetching stories for the feed.
  *
  * @param {import('../models/story.js').Story[]} stories
  */
 export function recordStories(stories) {
+  if (!stories || stories.length === 0) return;
+
   const data = store.read();
-  const today = todayKey();
+  const today = new Date().toISOString().split('T')[0];
 
-  if (!data.days[today]) {
-    data.days[today] = {};
+  // Initialize today's bucket if needed
+  if (!data.history[today]) {
+    data.history[today] = {};
+    // Cleanup old history (keep last 30 days)
+    cleanupHistory(data);
   }
 
-  for (const story of stories) {
-    if (!Array.isArray(story.tags)) continue;
-    for (const keyword of story.tags) {
-      data.days[today][keyword] = (data.days[today][keyword] || 0) + 1;
-    }
-  }
+  // Tally keywords
+  stories.forEach(story => {
+    if (!story.tags) return;
+    story.tags.forEach(tag => {
+      const normalized = tag.toLowerCase();
+      data.history[today][normalized] = (data.history[today][normalized] || 0) + 1;
+    });
+  });
 
-  // Prune days older than RETENTION_DAYS to prevent unbounded growth
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
-  const cutoffKey = cutoff.toISOString().slice(0, 10);
-
-  for (const day of Object.keys(data.days)) {
-    if (day < cutoffKey) {
-      delete data.days[day];
-    }
-  }
-
+  data.lastProcessed = Date.now();
   store.write(data);
 }
 
 /**
- * Detect currently trending keywords by comparing today's frequency
- * against the rolling average of the past N days.
- *
- * A keyword is "trending" if today's count >= spikeThreshold × average.
- *
- * @param {{ windowDays?: number, spikeThreshold?: number }} [options]
- * @returns {{ keyword: string, count: number, changePercent: number }[]}
- *   Sorted by changePercent descending.
+ * cleanupHistory - remove entries older than 30 days to save space
  */
-export function getTrending({ windowDays = 7, spikeThreshold = 2 } = {}) {
-  const data = store.read();
-  const today = todayKey();
-  const todayCounts = data.days[today];
-
-  if (!todayCounts) return [];
-
-  const pastDays = Object.keys(data.days)
-    .filter(d => d !== today)
-    .sort()
-    .slice(-windowDays);
-
-  // Need at least 1 day of history to detect a spike
-  if (pastDays.length === 0) return [];
-
-  const trending = [];
-
-  for (const [keyword, todayCount] of Object.entries(todayCounts)) {
-    const pastCounts = pastDays.map(d => (data.days[d] || {})[keyword] || 0);
-    const avg = pastCounts.reduce((a, b) => a + b, 0) / pastCounts.length;
-
-    if (avg > 0 && todayCount >= avg * spikeThreshold) {
-      const changePercent = Math.round(((todayCount - avg) / avg) * 100);
-      trending.push({ keyword, count: todayCount, changePercent });
-    }
+function cleanupHistory(data) {
+  const dates = Object.keys(data.history).sort();
+  if (dates.length > 30) {
+    const toRemove = dates.slice(0, dates.length - 30);
+    toRemove.forEach(date => delete data.history[date]);
   }
-
-  return trending.sort((a, b) => b.changePercent - a.changePercent);
 }
 
 /**
- * Get historical frequency data for a specific keyword.
+ * Get the list of currently trending topics.
  *
- * @param {string} keyword
- * @returns {{ date: string, count: number }[]} Sorted by date ascending.
+ * @returns {Array<{ keyword: string, growth: number, count: number }>}
  */
-export function getHistory(keyword) {
+export function getTrending() {
+  const settings = settingsStore.getAll();
+  const threshold = settings.trendingSpikeThreshold || 2; // e.g. 2x growth
+  // Use a simpler approach: Minimum occurrences to even consider (noise filter)
+  const MIN_COUNT = 3;
+
   const data = store.read();
-  return Object.keys(data.days)
-    .sort()
-    .map(date => ({
-      date,
-      count: (data.days[date] || {})[keyword] || 0,
-    }));
+  const today = new Date().toISOString().split('T')[0];
+  const todayCounts = data.history[today] || {};
+
+  const dates = Object.keys(data.history).filter(d => d !== today).sort().reverse().slice(0, 7);
+
+  // Calculate 7-day average for each keyword found today
+  const trends = [];
+
+  Object.entries(todayCounts).forEach(([keyword, count]) => {
+    if (count < MIN_COUNT) return;
+
+    let historicalSum = 0;
+    let daysPresent = 0;
+
+    dates.forEach(date => {
+      if (data.history[date] && data.history[date][keyword]) {
+        historicalSum += data.history[date][keyword];
+        daysPresent++;
+      }
+    });
+
+    // Avoid divide by zero. If never seen before, average is small (0.5) to enable "new" spikes
+    const average = daysPresent > 0 ? historicalSum / daysPresent : 0.5;
+
+    const growth = count / average;
+
+    if (growth >= threshold) {
+      trends.push({
+        keyword,
+        growth: parseFloat(growth.toFixed(1)),
+        count
+      });
+    }
+  });
+
+  // Sort by growth (explosiveness) then by raw count
+  return trends.sort((a, b) => b.growth - a.growth || b.count - a.count).slice(0, 10);
 }
