@@ -1,0 +1,319 @@
+:root {
+  /* Colors - HSL */
+  --bg-primary: 220 15% 10%;
+  /* Deep dark blue-grey */
+  --bg-secondary: 220 15% 14%;
+  --accent-primary: 250 100% 70%;
+  /* Soft Electric Purple */
+  --accent-secondary: 180 100% 50%;
+  /* Cyan */
+  --text-primary: 220 20% 95%;
+  --text-secondary: 220 15% 70%;
+
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-blur: 20px;
+
+  /* Typography */
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  /* Spacing */
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 2rem;
+  --space-xl: 4rem;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: hsl(var(--bg-primary));
+  color: hsl(var(--text-primary));
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* App Structure */
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Header ─── */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: var(--space-md) var(--space-lg);
+  background: rgba(18, 22, 31, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.logo {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, hsl(var(--text-primary)), hsl(var(--accent-primary)));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+
+.dot {
+  color: hsl(var(--accent-secondary));
+  -webkit-text-fill-color: hsl(var(--accent-secondary));
+}
+
+/* ─── Nav Tabs ─── */
+
+.nav-tabs {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.nav-tab {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: hsl(var(--text-secondary));
+  padding: 6px 16px;
+  border-radius: 100px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.nav-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: hsl(var(--text-primary));
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.nav-tab.active {
+  background: hsl(var(--accent-primary));
+  color: hsl(220, 15%, 10%);
+  border-color: hsl(var(--accent-primary));
+  font-weight: 600;
+}
+
+/* ─── Search ─── */
+
+.search-container {
+  position: relative;
+  width: 300px;
+}
+
+#search-input {
+  width: 100%;
+  padding: 10px 16px;
+  padding-right: 40px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 100px;
+  color: hsl(var(--text-primary));
+  font-family: var(--font-body);
+  transition: all 0.2s ease;
+}
+
+#search-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(120, 119, 198, 0.2);
+}
+
+.search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: hsl(var(--text-secondary));
+  pointer-events: none;
+}
+
+/* ─── Main Content ─── */
+
+.app-main {
+  flex: 1;
+  padding: var(--space-lg) var(--space-lg);
+  padding-top: var(--space-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ─── Feed Controls (filter chips inside feed view) ─── */
+
+.feed-controls {
+  margin-bottom: var(--space-md);
+}
+
+.feed-filters {
+  display: flex;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  padding-bottom: var(--space-sm);
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-chip {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: hsl(var(--text-secondary));
+  padding: 6px 16px;
+  border-radius: 100px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.filter-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: hsl(var(--text-primary));
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.filter-chip.active {
+  background: hsl(var(--accent-secondary));
+  color: hsl(220, 15%, 10%);
+  border-color: hsl(var(--accent-secondary));
+  font-weight: 600;
+}
+
+/* ─── Trending Bar ─── */
+
+.trending-bar {
+  margin-bottom: var(--space-md);
+}
+
+.trending-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.trending-label {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: hsl(var(--text-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trending-chip {
+  background: rgba(255, 120, 50, 0.1);
+  border: 1px solid rgba(255, 120, 50, 0.25);
+  color: hsl(var(--text-primary));
+  padding: 4px 12px;
+  border-radius: 100px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  transition: all 0.2s ease;
+}
+
+.trending-chip:hover {
+  background: rgba(255, 120, 50, 0.2);
+  border-color: rgba(255, 120, 50, 0.4);
+}
+
+.trending-pct {
+  color: hsl(15, 100%, 65%);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+/* ─── News Grid ─── */
+
+.news-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--space-md);
+}
+
+.loading-state {
+  text-align: center;
+  color: hsl(var(--text-secondary));
+  grid-column: 1 / -1;
+  padding: var(--space-xl);
+  font-family: var(--font-heading);
+}
+
+/* ─── View Placeholder (stub views) ─── */
+
+.view-placeholder {
+  text-align: center;
+  padding: var(--space-xl) var(--space-lg);
+  color: hsl(var(--text-secondary));
+}
+
+.view-placeholder h2 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  color: hsl(var(--text-primary));
+  margin-bottom: var(--space-md);
+}
+
+.view-placeholder p {
+  max-width: 500px;
+  margin: 0 auto var(--space-sm);
+  line-height: 1.8;
+}
+
+/* ─── Background Glow ─── */
+
+body::before {
+  content: '';
+  position: fixed;
+  top: -20%;
+  left: -10%;
+  width: 50vw;
+  height: 50vh;
+  background: radial-gradient(circle, hsla(var(--accent-primary), 0.15), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -20%;
+  right: -10%;
+  width: 50vw;
+  height: 50vh;
+  background: radial-gradient(circle, hsla(var(--accent-secondary), 0.1), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
