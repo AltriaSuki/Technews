@@ -74,6 +74,31 @@ a {
   gap: var(--space-md);
 }
 
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-md);
+  }
+
+  .nav-tabs {
+    order: 3;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
+  }
+
+  .search-container {
+    order: 2;
+    width: 100%;
+  }
+
+  .logo {
+    text-align: center;
+  }
+}
+
 .logo {
   font-family: var(--font-heading);
   font-size: 1.5rem;
@@ -131,6 +156,12 @@ a {
   width: 300px;
 }
 
+@media (max-width: 768px) {
+  .search-container {
+    width: 100%;
+  }
+}
+
 #search-input {
   width: 100%;
   padding: 10px 16px;
@@ -168,6 +199,16 @@ a {
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+}
+
+@media (max-width: 768px) {
+  .app-main {
+    padding: var(--space-md);
+  }
+
+  .news-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ─── Feed Controls (filter chips inside feed view) ─── */
