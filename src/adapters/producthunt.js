@@ -30,7 +30,8 @@ export async function fetchStories({ limit = 30 } = {}) {
 
 function mapItemToStory(item) {
     // item.guid is usually the permalink, use it to generate ID
-    const id = item.guid.split('/').pop() || item.title.replace(/\s+/g, '-');
+    const guid = item.guid && typeof item.guid === 'string' ? item.guid : '';
+    const id = guid.split('/').pop() || item.title.replace(/\s+/g, '-');
 
     return createStory({
         id: `ph-${id}`,

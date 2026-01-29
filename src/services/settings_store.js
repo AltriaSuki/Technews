@@ -19,9 +19,18 @@ const DEFAULT_SETTINGS = Object.freeze({
 });
 
 const store = createStore('settings', {
-  version: 1,
-  migrations: {},
-  defaultValue: () => ({ _version: 1, ...DEFAULT_SETTINGS }),
+  version: 2,
+  migrations: {
+    2: (data) => {
+      // Add new sources to enabledSources if they aren't there
+      const newSources = ['github', 'reddit', 'producthunt', 'arxiv'];
+      const current = new Set(data.enabledSources || []);
+      newSources.forEach(s => current.add(s));
+      data.enabledSources = [...current];
+      return data;
+    },
+  },
+  defaultValue: () => ({ _version: 2, ...DEFAULT_SETTINGS }),
 });
 
 export const settingsStore = Object.freeze({

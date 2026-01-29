@@ -17,8 +17,8 @@ export async function fetchStories({ limit = 30 } = {}) {
         date.setDate(date.getDate() - 7);
         const dateStr = date.toISOString().split('T')[0];
 
-        const query = `created:>${dateStr} sort:stars`;
-        const url = `${API_BASE}?q=${encodeURIComponent(query)}&per_page=${limit}`;
+        const query = `created:>${dateStr}`;
+        const url = `${API_BASE}?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=${limit}`;
 
         const response = await fetch(url, {
             headers: {
