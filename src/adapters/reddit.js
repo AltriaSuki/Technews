@@ -32,6 +32,8 @@ export async function fetchStories({ limit = 30 } = {}) {
 async function fetchSubreddit(subreddit, limit) {
     try {
         // Use CORS proxy to bypass localhost restrictions
+        // WARNING: Dependent on third-party proxy (corsproxy.io). 
+        // If availability becomes an issue, consider a backend proxy or server-side fetch.
         const PROXY = 'https://corsproxy.io/?';
         const targetUrl = encodeURIComponent(`https://www.reddit.com/r/${subreddit}/hot.json?limit=${limit}`);
         const response = await fetch(`${PROXY}${targetUrl}`);

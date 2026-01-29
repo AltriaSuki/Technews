@@ -31,11 +31,12 @@ export async function fetchStories({ limit = 30 } = {}) {
 function mapItemToStory(item) {
     // item.guid is usually the permalink, use it to generate ID
     const guid = item.guid && typeof item.guid === 'string' ? item.guid : '';
-    const id = guid.split('/').pop() || item.title.replace(/\s+/g, '-');
+    const title = typeof item.title === 'string' ? item.title : 'Untitled Product';
+    const id = guid.split('/').pop() || title.replace(/\s+/g, '-');
 
     return createStory({
         id: `ph-${id}`,
-        title: item.title,
+        title: title,
         url: item.link,
         source: SOURCES.PRODUCTHUNT,
         score: 80, // RSS doesn't provide votes, default to high visibility

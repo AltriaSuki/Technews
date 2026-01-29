@@ -15,6 +15,7 @@ export async function fetchStories({ limit = 30 } = {}) {
     try {
         const query = 'cat:cs.AI OR cat:cs.SE OR cat:cs.LG OR cat:cs.CV';
         // Use CORS proxy to bypass localhost restrictions
+        // WARNING: Dependent on third-party proxy (corsproxy.io).
         const PROXY = 'https://corsproxy.io/?';
         const targetUrl = encodeURIComponent(`${API_BASE}?search_query=${encodeURIComponent(query)}&start=0&max_results=${limit}&sortBy=submittedDate&sortOrder=descending`);
         const response = await fetch(`${PROXY}${targetUrl}`);
