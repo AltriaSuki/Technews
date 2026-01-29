@@ -45,5 +45,6 @@ function mapItemToStory(item) {
         timestamp: new Date(item.pubDate).getTime() / 1000,
         tags: extractKeywords(`${item.title} ${item.categories ? item.categories.join(' ') : ''}`),
         discussionUrl: item.link,
+        summary: item.description || '',
     });
 }

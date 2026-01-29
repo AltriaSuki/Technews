@@ -63,6 +63,7 @@ function mapItemToStory(item) {
         timestamp: item.created_utc,
         tags: extractKeywords(`${item.title} ${item.subreddit}`),
         discussionUrl: `https://reddit.com${item.permalink}`,
+        summary: item.selftext ? (item.selftext.substring(0, 300) + (item.selftext.length > 300 ? '...' : '')) : '',
     });
 }
 

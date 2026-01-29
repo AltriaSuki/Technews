@@ -34,7 +34,7 @@ const VALID_SOURCES = new Set(Object.values(SOURCES));
  * @param {string} [fields.discussionUrl] - Link to discussion page
  * @returns {Readonly<Object>}
  */
-export function createStory({ id, title, url, source, score, comments, author, timestamp, tags, discussionUrl }) {
+export function createStory({ id, title, url, source, score, comments, author, timestamp, tags, discussionUrl, summary }) {
   if (typeof id !== 'string' || id.length === 0) {
     throw new Error(`Story: id must be a non-empty string, got "${id}"`);
   }
@@ -56,6 +56,7 @@ export function createStory({ id, title, url, source, score, comments, author, t
     timestamp: typeof timestamp === 'number' ? timestamp : Math.floor(Date.now() / 1000),
     tags: Object.freeze(Array.isArray(tags) ? [...tags] : []),
     discussionUrl: typeof discussionUrl === 'string' ? discussionUrl : '',
+    summary: typeof summary === 'string' ? summary : '',
   });
 }
 

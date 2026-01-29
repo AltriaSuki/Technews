@@ -34,7 +34,27 @@ const ALL_ADAPTERS = {
  * @param {{ limit?: number }} [options] - Per-source story limit
  * @returns {Promise<import('../models/story.js').Story[]>}
  */
-export async function fetchAll({ limit } = {}) {
+// Cache state
+let cache = {
+  data: [],
+  timestamp: 0,
+  ttl: 5 * 60 * 1000 // 5 minutes
+};
+
+/**
+ * Fetch stories from all enabled sources, merge, deduplicate, and sort.
+ * Uses a simple time-based cache.
+ *
+ * @param {{ limit?: number, forceRefresh?: boolean }} [options]
+ * @returns {Promise<import('../models/story.js').Story[]>}
+ */
+export async function fetchAll({ limit, forceRefresh = false } = {}) {
+  // Check cache (unless forcing refresh)
+  const now = Date.now();
+  if (!forceRefresh && cache.data.length > 0 && (now - cache.timestamp < cache.ttl)) {
+    return [...cache.data]; // Return copy to be safe
+  }
+
   const settings = settingsStore.getAll();
   const enabledSources = settings.enabledSources || [];
   const perSourceLimit = limit || settings.storiesPerSource || 30;
@@ -62,7 +82,16 @@ export async function fetchAll({ limit } = {}) {
     }
   }
 
-  return deduplicateAndSort(allStories);
+  const finalData = deduplicateAndSort(allStories);
+
+  // Update cache
+  cache = {
+    data: finalData,
+    timestamp: now,
+    ttl: cache.ttl
+  };
+
+  return finalData;
 }
 
 /**

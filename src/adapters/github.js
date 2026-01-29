@@ -55,6 +55,7 @@ function mapItemToStory(item) {
         timestamp: new Date(item.created_at).getTime() / 1000,
         tags: extractKeywords(`${item.name} ${item.description || ''} ${item.language || ''}`),
         discussionUrl: `${item.html_url}/issues`,
+        summary: item.description || 'No description available.',
     });
 }
 

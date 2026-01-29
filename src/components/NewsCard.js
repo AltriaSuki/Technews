@@ -48,7 +48,15 @@ export function createNewsCard(story, callbacks = {}) {
           </a>`
       : `<span class="comments-link">${story.comments} comments</span>`
     }
+      ${story.summary
+      ? `<button class="summary-btn" aria-label="Toggle Summary" title="Show Summary">✨ Summary</button>`
+      : ''
+    }
     </div>
+    ${story.summary
+      ? `<div class="card-summary" style="display: none;">${esc(story.summary)}</div>`
+      : ''
+    }
   `;
 
   // Attach event listeners
@@ -56,6 +64,18 @@ export function createNewsCard(story, callbacks = {}) {
   if (link && callbacks.onRead) {
     link.addEventListener('click', () => {
       callbacks.onRead(story);
+    });
+  }
+
+  // Summary toggle
+  const summaryBtn = card.querySelector('.summary-btn');
+  const summaryContent = card.querySelector('.card-summary');
+  if (summaryBtn && summaryContent) {
+    summaryBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // prevent triggering other card clicks if any
+      const isHidden = summaryContent.style.display === 'none';
+      summaryContent.style.display = isHidden ? 'block' : 'none';
+      summaryBtn.classList.toggle('active', isHidden);
     });
   }
 

@@ -56,5 +56,6 @@ function mapEntryToStory(entry) {
         timestamp: new Date(published).getTime() / 1000,
         tags: extractKeywords(`${title} ${summary}`),
         discussionUrl: idUrl, // Abstract page
+        summary: summary,
     });
 }

@@ -141,6 +141,9 @@
     border-top: 1px solid var(--glass-border);
     padding-top: var(--space-md);
     margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .comments-link {
@@ -155,4 +158,36 @@
 
 .comments-link:hover {
     opacity: 0.8;
+}
+
+.summary-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: hsl(var(--accent-secondary));
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.summary-btn:hover,
+.summary-btn.active {
+    background: hsla(var(--accent-secondary), 0.15);
+    border-color: hsla(var(--accent-secondary), 0.4);
+}
+
+.card-summary {
+    margin-top: var(--space-sm);
+    padding: var(--space-md);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: hsl(var(--text-secondary));
+    border-left: 2px solid hsl(var(--accent-secondary));
 }
