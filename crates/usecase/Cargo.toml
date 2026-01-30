@@ -9,3 +9,4 @@ path = "src/lib.rs"
 [dependencies]
 techpulse-domain = { path = "../domain" }
 techpulse-shared = { path = "../shared" }
+async-trait = "0.1"
