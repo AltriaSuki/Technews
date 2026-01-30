@@ -1,0 +1,12 @@
+[package]
+name = "techpulse-adapter"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+techpulse-domain = { path = "../domain" }
+techpulse-usecase = { path = "../usecase" }
+techpulse-shared = { path = "../shared" }

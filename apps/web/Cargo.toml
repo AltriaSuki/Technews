@@ -1,0 +1,10 @@
+[package]
+name = "techpulse-web"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+techpulse-adapter = { path = "../../crates/adapter" }
+techpulse-usecase = { path = "../../crates/usecase" }
+techpulse-infra = { path = "../../crates/infra" }
+techpulse-shared = { path = "../../crates/shared" }

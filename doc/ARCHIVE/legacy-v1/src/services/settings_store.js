@@ -16,6 +16,11 @@ const DEFAULT_SETTINGS = Object.freeze({
   trendingWindowDays: 7,
   trendingSpikeThreshold: 2,
   storiesPerSource: 30,
+  translationEnabled: false,
+  translationTargetLang: 'zh',
+  translationProvider: 'libre',
+  translationEndpoint: 'https://libretranslate.com',
+  translationApiKey: '',
 });
 
 const store = createStore('settings', {
