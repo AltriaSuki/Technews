@@ -7,11 +7,6 @@ use techpulse_domain::repository::{ArticleRepo, TimelineRepo, TrendRepo, UserRep
 use techpulse_domain::trend::{TimelineEvent, TimelineEventId, TrendReport};
 use techpulse_domain::user::{UserId, UserProfile};
 
-// Helper macro or function for lock mapping could go here, 
-// but direct mapping is also fine if cleaned up. 
-// Let's use a private trait extension or method if desirable, 
-// but idiomatic simple map_err is often preferred. 
-// We will stick to simple map_err but ensure lines are cleaner where possible.
 
 // --- Article Repository ---
 #[derive(Debug, Clone, Default)]
