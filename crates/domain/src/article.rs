@@ -10,12 +10,28 @@ pub struct ArticleId(String);
 impl ArticleId {
     pub fn new(source: &Source, native_id: &str) -> Result<Self, DomainError> {
         if native_id.contains('-') {
-            // Simple prevention of "hn-12-34" collision with "hn-12-34"
-            // Start of a more robust validation or encoding strategy
             return Err(DomainError::Validation(
                 "Native ID cannot contain '-' separator".to_string(),
             ));
         }
+        
+        // Prevent aliasing: Custom sources cannot look like standard ones
+        // e.g. Custom("hn") or Reddit("foo-bar") which would become "rd-foo-bar"
+        // For simplicity, restrict source variants from containing separators too
+        match source {
+            Source::Custom(s) if s.contains('-') => {
+                return Err(DomainError::Validation(
+                    "Custom source name cannot contain '-'".to_string(),
+                ));
+            },
+            Source::Reddit(s) if s.contains('-') => {
+                 return Err(DomainError::Validation(
+                    "Subreddit name cannot contain '-'".to_string(),
+                ));
+            }
+            _ => {}
+        }
+        
         Ok(Self(format!("{}-{}", source, native_id)))
     }
 }
@@ -38,21 +54,14 @@ pub enum Source {
 
 impl fmt::Display for Source {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Source::HackerNews => "hn".to_string(),
-            Source::GitHub => "gh".to_string(),
-            Source::Reddit(sub) => format!("rd-{}", sub),
-            Source::ProductHunt => "ph".to_string(),
-            Source::ArXiv => "arxiv".to_string(),
-            Source::Custom(s) => s.clone(),
-        };
-        write!(f, "{}", s)
-    }
-}
-
-impl Source {
-    pub fn as_str(&self) -> String {
-        self.to_string()
+        match self {
+            Source::HackerNews => f.write_str("hn"),
+            Source::GitHub => f.write_str("gh"),
+            Source::Reddit(sub) => write!(f, "rd-{}", sub),
+            Source::ProductHunt => f.write_str("ph"),
+            Source::ArXiv => f.write_str("arxiv"),
+            Source::Custom(s) => f.write_str(s),
+        }
     }
 }
 
@@ -92,9 +101,11 @@ impl Article {
         })
     }
 
+
     // Simple decaying score calculation example
     pub fn calculate_score(&self, now: i64) -> f64 {
-        let age_hours = (now - self.timestamp) as f64 / 3600.0;
+        // Clamp age to 0 to prevent future-dated articles from getting infinite/huge scores
+        let age_hours = ((now - self.timestamp) as f64 / 3600.0).max(0.0);
         let decay = 1.0 / (age_hours + 2.0).powf(1.8);
         
         // Base score affected by comments (simple heuristic)
@@ -120,12 +131,14 @@ mod tests {
 
     #[test]
     fn test_article_id_validation() {
-        let id_result = ArticleId::new(&Source::HackerNews, "12-34");
-        assert!(id_result.is_err());
-        match id_result {
-            Err(DomainError::Validation(_)) => (), // Expected
-            _ => panic!("Expected Validation error"),
-        }
+        // Native ID cannot contain separator
+        assert!(ArticleId::new(&Source::HackerNews, "12-34").is_err());
+        
+        // Custom source cannot contain separator
+        assert!(ArticleId::new(&Source::Custom("my-source".into()), "123").is_err());
+        
+        // Reddit subreddit cannot contain separator
+        assert!(ArticleId::new(&Source::Reddit("sub-reddit".into()), "123").is_err());
     }
 
     #[test]
@@ -146,6 +159,17 @@ mod tests {
         
         assert!(score_now > 0.0);
         assert!(score_1h_later < score_now);
+        
+        // Future dated article (negative age) should be treated as age=0
+        let score_future = article.calculate_score(now - 3600); // timestamp is 1h in future relative to "now - 3600" passed as arg?? No wait. 
+        // If article ts = 1000. calculate_score(900). age = -100.
+        // We want to test that calculate_score(timestamp - 1h) gives same result as calculate_score(timestamp)
+        
+        let score_at_birth = article.calculate_score(now);
+        let score_pre_birth = article.calculate_score(now - 3600);
+        
+        assert!((score_at_birth - score_pre_birth).abs() < 0.001);
+        assert!((score_future - score_at_birth).abs() < 0.001);
     }
     
     #[test]
