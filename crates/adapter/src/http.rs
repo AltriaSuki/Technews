@@ -106,10 +106,16 @@ async fn get_feed(
     }))
 }
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize)]
 pub struct TrendsRequest {
     #[serde(default = "default_keywords")]
     pub keywords: Vec<String>,
+}
+
+impl Default for TrendsRequest {
+    fn default() -> Self {
+        Self { keywords: default_keywords() }
+    }
 }
 
 fn default_keywords() -> Vec<String> {
