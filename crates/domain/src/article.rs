@@ -16,13 +16,21 @@ impl ArticleId {
         }
         
         // Prevent aliasing: Custom sources cannot look like standard ones
-        // e.g. Custom("hn") or Reddit("foo-bar") which would become "rd-foo-bar"
-        // For simplicity, restrict source variants from containing separators too
         match source {
-            Source::Custom(s) if s.contains('-') => {
-                return Err(DomainError::Validation(
-                    "Custom source name cannot contain '-'".to_string(),
-                ));
+            Source::Custom(s) => {
+                if s.contains('-') {
+                    return Err(DomainError::Validation(
+                        "Custom source name cannot contain '-'".to_string(),
+                    ));
+                }
+                match s.as_str() {
+                    "hn" | "gh" | "ph" | "arxiv" => {
+                        return Err(DomainError::Validation(
+                            format!("Custom source cannot use reserved prefix '{}'", s)
+                        ));
+                    }
+                    _ => {}
+                }
             },
             Source::Reddit(s) if s.contains('-') => {
                  return Err(DomainError::Validation(
@@ -100,8 +108,6 @@ impl Article {
             is_hot_on_source: false,
         })
     }
-
-
     // Simple decaying score calculation example
     pub fn calculate_score(&self, now: i64) -> f64 {
         // Clamp age to 0 to prevent future-dated articles from getting infinite/huge scores
@@ -136,6 +142,9 @@ mod tests {
         
         // Custom source cannot contain separator
         assert!(ArticleId::new(&Source::Custom("my-source".into()), "123").is_err());
+
+        // Custom source cannot use reserved prefix
+        assert!(ArticleId::new(&Source::Custom("hn".into()), "123").is_err());
         
         // Reddit subreddit cannot contain separator
         assert!(ArticleId::new(&Source::Reddit("sub-reddit".into()), "123").is_err());
@@ -161,15 +170,10 @@ mod tests {
         assert!(score_1h_later < score_now);
         
         // Future dated article (negative age) should be treated as age=0
-        let score_future = article.calculate_score(now - 3600); // timestamp is 1h in future relative to "now - 3600" passed as arg?? No wait. 
-        // If article ts = 1000. calculate_score(900). age = -100.
-        // We want to test that calculate_score(timestamp - 1h) gives same result as calculate_score(timestamp)
-        
         let score_at_birth = article.calculate_score(now);
         let score_pre_birth = article.calculate_score(now - 3600);
         
         assert!((score_at_birth - score_pre_birth).abs() < 0.001);
-        assert!((score_future - score_at_birth).abs() < 0.001);
     }
     
     #[test]

@@ -13,6 +13,12 @@ impl From<&str> for TimelineEventId {
     }
 }
 
+impl std::fmt::Display for TimelineEventId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Trend {
     pub keyword: String,
