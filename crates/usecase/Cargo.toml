@@ -10,3 +10,7 @@ path = "src/lib.rs"
 techpulse-domain = { path = "../domain" }
 techpulse-shared = { path = "../shared" }
 async-trait = "0.1"
+
+[dev-dependencies]
+mockall = "0.14.0"
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
