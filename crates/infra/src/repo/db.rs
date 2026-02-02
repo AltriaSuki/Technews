@@ -76,9 +76,15 @@ impl ArticleRepo for SqliteArticleRepo {
 }
 
 fn map_row_to_article(row: &sqlx::sqlite::SqliteRow) -> Result<Article, DomainError> {
-    let source_str: String = row.try_get("source").unwrap_or_default();
+    let source_str: String = row.try_get("source")
+        .map_err(|e| DomainError::Repository(format!("Missing source: {}", e)))?;
+        
     let source = match source_str.as_str() {
         "hn" => Source::HackerNews,
+        "gh" => Source::GitHub,
+        "ph" => Source::ProductHunt,
+        "arxiv" => Source::ArXiv,
+        s if s.starts_with("rd-") => Source::Reddit(s[3..].to_string()),
         _ => Source::Custom(source_str),
     };
     
@@ -86,14 +92,17 @@ fn map_row_to_article(row: &sqlx::sqlite::SqliteRow) -> Result<Article, DomainEr
     let tags: HashSet<String> = serde_json::from_str(&tags_str)
         .unwrap_or_default();
 
+    let id_str: String = row.try_get("id")
+        .map_err(|e| DomainError::Repository(format!("Missing id: {}", e)))?;
+
     Ok(Article {
-        id: ArticleId::from(row.try_get::<String, _>("id").unwrap_or_default()),
-        title: row.try_get("title").unwrap_or_default(),
-        url: row.try_get("url").unwrap_or_default(),
+        id: ArticleId::from_persisted(id_str),
+        title: row.try_get("title").map_err(|e| DomainError::Repository(format!("Missing title: {}", e)))?,
+        url: row.try_get("url").unwrap_or_default(), // Can be empty per migration default
         source,
         score: row.try_get("score").unwrap_or_default(),
         author: row.try_get("author").unwrap_or_default(),
-        timestamp: row.try_get("timestamp").unwrap_or_default(),
+        timestamp: row.try_get("timestamp").map_err(|e| DomainError::Repository(format!("Missing timestamp: {}", e)))?,
         tags,
         comment_count: row.try_get::<i64, _>("comment_count").unwrap_or_default() as u32,
         is_hot_on_source: row.try_get("is_hot_on_source").unwrap_or_default(),
@@ -119,9 +128,10 @@ impl TrendRepo for SqliteTrendRepo {
         let metadata = serde_json::to_string(&report.metadata)
             .map_err(|e| DomainError::Repository(format!("Serialization error: {}", e)))?;
 
+        // Note: report.timestamp is just a value in the column, not PK anymore
         sqlx::query(
             r#"
-            INSERT OR REPLACE INTO trends (timestamp, data, metadata)
+            INSERT INTO trends (timestamp, data, metadata)
             VALUES (?, ?, ?)
             "#,
         )
@@ -136,14 +146,15 @@ impl TrendRepo for SqliteTrendRepo {
     }
 
     async fn find_latest_report(&self) -> Result<Option<TrendReport>, DomainError> {
+        // Use timestamp index to find latest
         let row = sqlx::query("SELECT * FROM trends ORDER BY timestamp DESC LIMIT 1")
             .fetch_optional(&self.pool)
             .await
             .map_err(|e| DomainError::Repository(e.to_string()))?;
 
         if let Some(row) = row {
-            let timestamp: i64 = row.try_get("timestamp").unwrap_or_default();
-            let data_str: String = row.try_get("data").unwrap_or_default();
+            let timestamp: i64 = row.try_get("timestamp").map_err(|e| DomainError::Repository(format!("Missing timestamp: {}", e)))?;
+            let data_str: String = row.try_get("data").map_err(|e| DomainError::Repository(format!("Missing data: {}", e)))?;
             let trends: Vec<Trend> = serde_json::from_str(&data_str)
                 .map_err(|e| DomainError::Repository(format!("Deserialization error: {}", e)))?;
             

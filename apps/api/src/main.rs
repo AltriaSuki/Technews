@@ -1,4 +1,4 @@
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use sqlx::sqlite::SqlitePoolOptions;
 use std::sync::Arc;
 use techpulse_adapter::http::{routes, AppState};

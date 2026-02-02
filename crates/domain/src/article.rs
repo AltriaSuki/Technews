@@ -46,13 +46,9 @@ impl ArticleId {
         
         Ok(Self(format!("{}-{}", source, native_id)))
     }
-    pub fn from_string(s: String) -> Self {
-        Self(s)
-    }
-}
-
-impl From<String> for ArticleId {
-    fn from(s: String) -> Self {
+    /// Reconstruct from a previously-validated stored string.
+    /// Only use for DB deserialization — not for creating new IDs.
+    pub fn from_persisted(s: String) -> Self {
         Self(s)
     }
 }

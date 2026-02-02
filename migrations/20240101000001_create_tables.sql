@@ -1,11 +1,8 @@
--- Add migration script here
-DROP TABLE IF EXISTS articles;
-DROP TABLE IF EXISTS trends;
-
-CREATE TABLE articles (
+-- Migration for articles and trends tables
+CREATE TABLE IF NOT EXISTS articles (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
-    url TEXT,
+    url TEXT NOT NULL DEFAULT '',
     source TEXT NOT NULL,
     score REAL DEFAULT 0.0,
     author TEXT DEFAULT '',
@@ -15,10 +12,12 @@ CREATE TABLE articles (
     is_hot_on_source BOOLEAN DEFAULT FALSE
 );
 
-CREATE TABLE trends (
-    timestamp INTEGER PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS trends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp INTEGER NOT NULL,
     data TEXT NOT NULL, -- JSON data
     metadata TEXT DEFAULT '{}' -- JSON data
 );
 
-CREATE INDEX idx_articles_timestamp ON articles(timestamp);
+CREATE INDEX IF NOT EXISTS idx_articles_timestamp ON articles(timestamp);
+CREATE INDEX IF NOT EXISTS idx_trends_timestamp ON trends(timestamp);

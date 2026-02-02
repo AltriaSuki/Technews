@@ -14,4 +14,4 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 techpulse-usecase = { version = "0.1.0", path = "../../crates/usecase" }
 sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "migrate"] }
-dotenv = "0.15"
+dotenvy = "0.15.7"
