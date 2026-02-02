@@ -1,14 +1,11 @@
 // Infrastructure for External Gateways (APIs)
 use async_trait::async_trait;
+use futures::future::join_all;
 use reqwest::Client;
 use serde::Deserialize;
 use techpulse_domain::article::{Article, Source};
 use techpulse_domain::error::DomainError;
-
-#[async_trait]
-pub trait ArticleGateway: Send + Sync {
-    async fn fetch_top_articles(&self, limit: usize) -> Result<Vec<Article>, DomainError>;
-}
+use techpulse_domain::gateway::ArticleGateway;
 
 #[derive(Debug, Clone)]
 pub struct HackerNewsGateway {
@@ -46,43 +43,57 @@ impl ArticleGateway for HackerNewsGateway {
             .get("https://hacker-news.firebaseio.com/v0/topstories.json")
             .send()
             .await
-            .map_err(|e| DomainError::Repository(format!("HN API error: {}", e)))?
+            .map_err(|e| DomainError::Gateway(format!("HN API error: {}", e)))?
             .json()
             .await
-            .map_err(|e| DomainError::Repository(format!("HN parse error: {}", e)))?;
+            .map_err(|e| DomainError::Gateway(format!("HN parse error: {}", e)))?;
 
-        // 2. Fetch each item (limit to avoid too many requests)
-        let mut articles = Vec::new();
-        for id in top_ids.into_iter().take(limit) {
-            let item_url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", id);
-            let item: HnItem = match self.client.get(&item_url).send().await {
-                Ok(resp) => match resp.json().await {
-                    Ok(item) => item,
-                    Err(_) => continue,
-                },
-                Err(_) => continue,
-            };
-
-            // Skip items without title or url
-            let title = match item.title {
-                Some(t) => t,
-                None => continue,
-            };
-            let url = item.url.unwrap_or_else(|| {
-                format!("https://news.ycombinator.com/item?id={}", item.id)
-            });
-            let timestamp = item.time.unwrap_or(0);
-
-            if let Ok(article) = Article::new(
-                Source::HackerNews,
-                &item.id.to_string(),
-                title,
-                url,
-                timestamp,
-            ) {
-                articles.push(article);
+        // 2. Fetch items in parallel
+        // Use a limit on concurrency if needed, but for now strict limit is fine
+        let fetch_futures = top_ids.into_iter().take(limit).map(|id| {
+            let client = self.client.clone();
+            async move {
+                let item_url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", id);
+                match client.get(&item_url).send().await {
+                    Ok(resp) => match resp.json::<HnItem>().await {
+                        Ok(item) => Some(item),
+                        Err(e) => {
+                            tracing::warn!("Failed to parse HN item {}: {}", id, e);
+                            None
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("Failed to fetch HN item {}: {}", id, e);
+                        None
+                    }
+                }
             }
-        }
+        });
+
+        // Parallel execution
+        let results = join_all(fetch_futures).await;
+
+        // 3. Convert to domain articles
+        let articles: Vec<Article> = results
+            .into_iter()
+            .filter_map(|item| item)
+            .filter_map(|item| {
+                let title = item.title?;
+                let url = item
+                    .url
+                    .unwrap_or_else(|| format!("https://news.ycombinator.com/item?id={}", item.id));
+                let timestamp = item.time.unwrap_or(0);
+
+                Article::new(
+                    Source::HackerNews,
+                    &item.id.to_string(),
+                    title,
+                    url,
+                    timestamp,
+                )
+                .ok()
+            })
+            .collect();
 
         Ok(articles)
     }
