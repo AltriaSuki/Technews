@@ -107,8 +107,7 @@ async fn test_sqlite_trend_roundtrip() {
     assert_eq!(found.trends.len(), 1);
     assert_eq!(found.trends[0].keyword, "Runes");
     
-    // Test overwrite prevention (new timestamp = new row due to unique constraint logic if PK was timestamp, 
-    // but now PK is ID, so it just inserts new row)
+    // Verify multiple reports coexist (new row per save)
     let report2 = TrendReport {
         timestamp: 2000,
         trends: vec![],
