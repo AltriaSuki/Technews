@@ -2437,10 +2437,15 @@ name = "techpulse-adapter"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "http-body-util",
  "serde",
+ "serde_json",
  "techpulse-domain",
+ "techpulse-infra",
  "techpulse-shared",
  "techpulse-usecase",
+ "tokio",
+ "tower",
  "tracing",
 ]
 
@@ -2452,6 +2457,7 @@ dependencies = [
  "techpulse-adapter",
  "techpulse-infra",
  "techpulse-shared",
+ "techpulse-usecase",
  "tokio",
  "tower-http",
  "tracing",
