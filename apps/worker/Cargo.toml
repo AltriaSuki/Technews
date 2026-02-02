@@ -1,0 +1,10 @@
+[package]
+name = "techpulse-worker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+techpulse-usecase = { path = "../../crates/usecase" }
+techpulse-infra = { path = "../../crates/infra" }
+techpulse-shared = { path = "../../crates/shared" }
+tokio = { version = "1.0", features = ["full"] }

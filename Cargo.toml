@@ -1,0 +1,12 @@
+[workspace]
+members = [
+  "apps/api",
+  "apps/web",
+  "apps/worker",
+  "crates/domain",
+  "crates/usecase",
+  "crates/adapter",
+  "crates/infra",
+  "crates/shared",
+]
+resolver = "2"
