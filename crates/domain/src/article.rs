@@ -46,6 +46,15 @@ impl ArticleId {
         
         Ok(Self(format!("{}-{}", source, native_id)))
     }
+    pub fn from_string(s: String) -> Self {
+        Self(s)
+    }
+}
+
+impl From<String> for ArticleId {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
 }
 
 impl fmt::Display for ArticleId {
