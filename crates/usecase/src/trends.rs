@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use techpulse_domain::article::ArticleId;
 use techpulse_domain::error::DomainError;
 use techpulse_domain::repository::{ArticleRepo, TrendRepo};
 use techpulse_domain::trend::{Trend, TrendReport};
@@ -21,21 +22,21 @@ impl CalculateTrends {
     }
 
     pub async fn execute(&self, keywords: &[String], now: i64) -> Result<TrendReport, DomainError> {
-        // 1. Fetch recent articles
         let articles = self.article_repo.find_latest(100).await?;
         
-        // 2. Simple analysis: Group by keywords in title
-        // Map: keyword -> (count, list_of_article_ids)
-        let mut topic_counts: HashMap<String, (u32, Vec<techpulse_domain::article::ArticleId>)> = HashMap::new();
+        // Pre-compute lowercase keywords once
+        let keywords_lower: Vec<(String, String)> = keywords
+            .iter()
+            .map(|kw| (kw.clone(), kw.to_lowercase()))
+            .collect();
+        
+        let mut topic_counts: HashMap<String, (u32, Vec<ArticleId>)> = HashMap::new();
         
         for article in &articles {
             let title_lower = article.title.to_lowercase();
-            for kw in keywords {
-                let kw_lower = kw.to_lowercase();
-                // Naive word boundary check could be improved with regex, 
-                // but for now simple containment of lowercased strings is the MVP step up.
-                if title_lower.contains(&kw_lower) {
-                    let entry = topic_counts.entry(kw.clone()).or_insert((0, Vec::new()));
+            for (original, lower) in &keywords_lower {
+                if title_lower.contains(lower.as_str()) {
+                    let entry = topic_counts.entry(original.clone()).or_insert((0, Vec::new()));
                     entry.0 += 1;
                     entry.1.push(article.id.clone());
                 }
