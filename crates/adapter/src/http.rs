@@ -8,6 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use techpulse_domain::article::Article;
+use techpulse_domain::error::DomainError;
 use techpulse_domain::trend::TrendReport;
 use techpulse_usecase::feed::GetChronologicalFeed;
 use techpulse_usecase::trends::CalculateTrends;
@@ -36,18 +37,18 @@ fn default_limit() -> usize {
     20
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct FeedResponse {
-    articles: Vec<ArticleDto>,
+    pub articles: Vec<ArticleDto>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ArticleDto {
-    id: String,
-    title: String,
-    url: String,
-    source: String,
-    timestamp: i64,
+    pub id: String,
+    pub title: String,
+    pub url: String,
+    pub source: String,
+    pub timestamp: i64,
 }
 
 impl From<Article> for ArticleDto {
@@ -62,11 +63,35 @@ impl From<Article> for ArticleDto {
     }
 }
 
-pub struct ApiError(String);
+pub struct ApiError(DomainError);
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
-        (StatusCode::INTERNAL_SERVER_ERROR, self.0).into_response()
+        // Log actual error for debugging
+        tracing::error!("API error: {:?}", self.0);
+        
+        let status = match &self.0 {
+            DomainError::NotFound(_) => StatusCode::NOT_FOUND,
+            DomainError::Validation(_) => StatusCode::BAD_REQUEST,
+            DomainError::AlreadyExists(_) => StatusCode::CONFLICT,
+            DomainError::Repository(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        
+        // Return generic message, don't leak internals
+        let message = match status {
+            StatusCode::NOT_FOUND => "Not found",
+            StatusCode::BAD_REQUEST => "Bad request",
+            StatusCode::CONFLICT => "Conflict",
+            _ => "Internal server error",
+        };
+        
+        (status, message).into_response()
+    }
+}
+
+impl From<DomainError> for ApiError {
+    fn from(e: DomainError) -> Self {
+        ApiError(e)
     }
 }
 
@@ -75,20 +100,16 @@ async fn get_feed(
     Query(params): Query<FeedQuery>,
 ) -> Result<Json<FeedResponse>, ApiError> {
     let limit = params.limit.min(100).max(1);
-    let articles = state
-        .feed
-        .execute(limit)
-        .await
-        .map_err(|e| ApiError(e.to_string()))?;
+    let articles = state.feed.execute(limit).await?;
     Ok(Json(FeedResponse {
         articles: articles.into_iter().map(ArticleDto::from).collect(),
     }))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct TrendsRequest {
     #[serde(default = "default_keywords")]
-    keywords: Vec<String>,
+    pub keywords: Vec<String>,
 }
 
 fn default_keywords() -> Vec<String> {
@@ -100,33 +121,31 @@ fn default_keywords() -> Vec<String> {
     ]
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TrendsResponse {
-    timestamp: i64,
-    trends: Vec<TrendDto>,
+    pub timestamp: i64,
+    pub trends: Vec<TrendDto>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TrendDto {
-    keyword: String,
-    score: f64,
-    volume: u32,
+    pub keyword: String,
+    pub score: f64,
+    pub volume: u32,
 }
 
 async fn calculate_trends(
     State(state): State<AppState>,
-    Json(body): Json<TrendsRequest>,
+    body: Option<Json<TrendsRequest>>,
 ) -> Result<Json<TrendsResponse>, ApiError> {
+    let request = body.map(|b| b.0).unwrap_or_default();
+    
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
 
-    let report: TrendReport = state
-        .trends
-        .execute(&body.keywords, now)
-        .await
-        .map_err(|e| ApiError(e.to_string()))?;
+    let report: TrendReport = state.trends.execute(&request.keywords, now).await?;
 
     Ok(Json(TrendsResponse {
         timestamp: report.timestamp,
@@ -147,6 +166,7 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::Request;
+    use http_body_util::BodyExt;
     use tower::ServiceExt;
     use techpulse_infra::repo::mem::{InMemoryArticleRepo, InMemoryTrendRepo};
 
@@ -182,10 +202,14 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+        
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let feed: FeedResponse = serde_json::from_slice(&body).unwrap();
+        assert!(feed.articles.is_empty()); // Empty in-memory repo
     }
 
     #[tokio::test]
-    async fn test_trends_endpoint() {
+    async fn test_trends_endpoint_with_body() {
         let app = routes(test_state());
         let response = app
             .oneshot(
@@ -194,6 +218,26 @@ mod tests {
                     .uri("/api/trends/calculate")
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"keywords":["Rust"]}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let trends: TrendsResponse = serde_json::from_slice(&body).unwrap();
+        assert!(trends.trends.is_empty()); // No articles to match
+    }
+    
+    #[tokio::test]
+    async fn test_trends_endpoint_without_body() {
+        let app = routes(test_state());
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/trends/calculate")
+                    .body(Body::empty())
                     .unwrap(),
             )
             .await
