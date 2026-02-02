@@ -11,18 +11,21 @@ use techpulse_domain::article::Article;
 use techpulse_domain::error::DomainError;
 use techpulse_domain::trend::TrendReport;
 use techpulse_usecase::feed::GetChronologicalFeed;
+use techpulse_usecase::ingest::IngestArticles;
 use techpulse_usecase::trends::CalculateTrends;
 
 #[derive(Clone)]
 pub struct AppState {
     pub feed: Arc<GetChronologicalFeed>,
     pub trends: Arc<CalculateTrends>,
+    pub ingest: Arc<IngestArticles>,
 }
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/health", get(|| async { "OK" }))
         .route("/api/feed", get(get_feed))
+        .route("/api/ingest", post(ingest_articles))
         .route("/api/trends/calculate", post(calculate_trends))
         .with_state(state)
 }
@@ -165,6 +168,30 @@ async fn calculate_trends(
             })
             .collect(),
     }))
+}
+
+#[derive(Deserialize)]
+pub struct IngestRequest {
+    #[serde(default = "default_ingest_limit")]
+    pub limit: usize,
+}
+
+fn default_ingest_limit() -> usize {
+    30
+}
+
+#[derive(Serialize)]
+pub struct IngestResponse {
+    pub ingested: usize,
+}
+
+async fn ingest_articles(
+    State(state): State<AppState>,
+    body: Option<Json<IngestRequest>>,
+) -> Result<Json<IngestResponse>, ApiError> {
+    let limit = body.map(|b| b.0.limit).unwrap_or(default_ingest_limit());
+    let count = state.ingest.execute(limit).await?;
+    Ok(Json(IngestResponse { ingested: count }))
 }
 
 #[cfg(test)]

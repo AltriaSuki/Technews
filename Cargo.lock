@@ -2484,6 +2484,7 @@ dependencies = [
  "reqwest",
  "scraper",
  "serde",
+ "serde_json",
  "sqlx",
  "techpulse-domain",
  "techpulse-shared",
@@ -2508,6 +2509,7 @@ dependencies = [
  "async-trait",
  "mockall",
  "techpulse-domain",
+ "techpulse-infra",
  "techpulse-shared",
  "tokio",
 ]
