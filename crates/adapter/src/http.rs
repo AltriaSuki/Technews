@@ -11,18 +11,21 @@ use techpulse_domain::article::Article;
 use techpulse_domain::error::DomainError;
 use techpulse_domain::trend::TrendReport;
 use techpulse_usecase::feed::GetChronologicalFeed;
+use techpulse_usecase::ingest::IngestArticles;
 use techpulse_usecase::trends::CalculateTrends;
 
 #[derive(Clone)]
 pub struct AppState {
     pub feed: Arc<GetChronologicalFeed>,
     pub trends: Arc<CalculateTrends>,
+    pub ingest: Arc<IngestArticles>,
 }
 
 pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/health", get(|| async { "OK" }))
         .route("/api/feed", get(get_feed))
+        .route("/api/ingest", post(ingest_articles))
         .route("/api/trends/calculate", post(calculate_trends))
         .with_state(state)
 }
@@ -75,6 +78,7 @@ impl IntoResponse for ApiError {
             DomainError::Validation(_) => StatusCode::BAD_REQUEST,
             DomainError::AlreadyExists(_) => StatusCode::CONFLICT,
             DomainError::Repository(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            DomainError::Gateway(_) => StatusCode::BAD_GATEWAY,
         };
         
         // Return generic message, don't leak internals
@@ -82,6 +86,7 @@ impl IntoResponse for ApiError {
             StatusCode::NOT_FOUND => "Not found",
             StatusCode::BAD_REQUEST => "Bad request",
             StatusCode::CONFLICT => "Conflict",
+            StatusCode::BAD_GATEWAY => "Upstream error",
             _ => "Internal server error",
         };
         
@@ -167,6 +172,30 @@ async fn calculate_trends(
     }))
 }
 
+#[derive(Deserialize)]
+pub struct IngestRequest {
+    #[serde(default = "default_ingest_limit")]
+    pub limit: usize,
+}
+
+fn default_ingest_limit() -> usize {
+    30
+}
+
+#[derive(Serialize)]
+pub struct IngestResponse {
+    pub ingested: usize,
+}
+
+async fn ingest_articles(
+    State(state): State<AppState>,
+    body: Option<Json<IngestRequest>>,
+) -> Result<Json<IngestResponse>, ApiError> {
+    let limit = body.map(|b| b.0.limit).unwrap_or(default_ingest_limit()).min(50).max(1);
+    let count = state.ingest.execute(limit).await?;
+    Ok(Json(IngestResponse { ingested: count }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,12 +205,29 @@ mod tests {
     use tower::ServiceExt;
     use techpulse_infra::repo::mem::{InMemoryArticleRepo, InMemoryTrendRepo};
 
+    use techpulse_domain::article::Article;
+    use techpulse_domain::error::DomainError;
+    use techpulse_domain::gateway::ArticleGateway;
+    use techpulse_usecase::ingest::IngestArticles;
+    use async_trait::async_trait;
+
+    struct StubGateway;
+    #[async_trait]
+    impl ArticleGateway for StubGateway {
+        async fn fetch_top_articles(&self, _limit: usize) -> Result<Vec<Article>, DomainError> {
+            Ok(vec![])
+        }
+    }
+
     fn test_state() -> AppState {
         let article_repo = Arc::new(InMemoryArticleRepo::new());
         let trend_repo = Arc::new(InMemoryTrendRepo::new());
+        let gateway = Arc::new(StubGateway);
+        
         AppState {
             feed: Arc::new(GetChronologicalFeed::new(article_repo.clone())),
-            trends: Arc::new(CalculateTrends::new(article_repo, trend_repo)),
+            trends: Arc::new(CalculateTrends::new(article_repo.clone(), trend_repo)),
+            ingest: Arc::new(IngestArticles::new(gateway, article_repo)),
         }
     }
 

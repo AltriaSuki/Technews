@@ -6,6 +6,7 @@ pub enum DomainError {
     Validation(String),
     Repository(String),
     AlreadyExists(String),
+    Gateway(String),
 }
 
 impl fmt::Display for DomainError {
@@ -15,6 +16,7 @@ impl fmt::Display for DomainError {
             DomainError::Validation(msg) => write!(f, "Validation error: {}", msg),
             DomainError::Repository(msg) => write!(f, "Repository error: {}", msg),
             DomainError::AlreadyExists(msg) => write!(f, "Entity already exists: {}", msg),
+            DomainError::Gateway(msg) => write!(f, "Gateway error: {}", msg),
         }
     }
 }
