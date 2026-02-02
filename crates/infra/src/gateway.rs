@@ -1,6 +1,6 @@
 // Infrastructure for External Gateways (APIs)
 use async_trait::async_trait;
-use futures::future::join_all;
+use futures::stream::{self, StreamExt};
 use reqwest::Client;
 use serde::Deserialize;
 use techpulse_domain::article::{Article, Source};
@@ -48,35 +48,35 @@ impl ArticleGateway for HackerNewsGateway {
             .await
             .map_err(|e| DomainError::Gateway(format!("HN parse error: {}", e)))?;
 
-        // 2. Fetch items in parallel
-        // Use a limit on concurrency if needed, but for now strict limit is fine
-        let fetch_futures = top_ids.into_iter().take(limit).map(|id| {
-            let client = self.client.clone();
-            async move {
-                let item_url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", id);
-                match client.get(&item_url).send().await {
-                    Ok(resp) => match resp.json::<HnItem>().await {
-                        Ok(item) => Some(item),
+        // 2. Fetch items in parallel with concurrency limit
+        let results: Vec<Option<HnItem>> = stream::iter(top_ids.into_iter().take(limit))
+            .map(|id| {
+                let client = self.client.clone();
+                async move {
+                    let item_url = format!("https://hacker-news.firebaseio.com/v0/item/{}.json", id);
+                    match client.get(&item_url).send().await {
+                        Ok(resp) => match resp.json::<HnItem>().await {
+                            Ok(item) => Some(item),
+                            Err(e) => {
+                                tracing::warn!("Failed to parse HN item {}: {}", id, e);
+                                None
+                            }
+                        },
                         Err(e) => {
-                            tracing::warn!("Failed to parse HN item {}: {}", id, e);
+                            tracing::warn!("Failed to fetch HN item {}: {}", id, e);
                             None
                         }
-                    },
-                    Err(e) => {
-                        tracing::warn!("Failed to fetch HN item {}: {}", id, e);
-                        None
                     }
                 }
-            }
-        });
-
-        // Parallel execution
-        let results = join_all(fetch_futures).await;
+            })
+            .buffer_unordered(10) // Limit concurrency to 10
+            .collect()
+            .await;
 
         // 3. Convert to domain articles
         let articles: Vec<Article> = results
             .into_iter()
-            .filter_map(|item| item)
+            .flatten()
             .filter_map(|item| {
                 let title = item.title?;
                 let url = item
