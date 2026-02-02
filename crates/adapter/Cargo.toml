@@ -13,3 +13,5 @@ techpulse-shared = { path = "../shared" }
 axum = "0.7"
 serde = { version = "1.0", features = ["derive"] }
 tracing = "0.1"
+techpulse-infra = { version = "0.1.0", path = "../infra" }
+serde_json = "1.0.149"

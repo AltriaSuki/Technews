@@ -2438,7 +2438,9 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "serde",
+ "serde_json",
  "techpulse-domain",
+ "techpulse-infra",
  "techpulse-shared",
  "techpulse-usecase",
  "tracing",
