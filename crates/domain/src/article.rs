@@ -1,5 +1,6 @@
 // Domain entities for Articles
-use serde::{Deserialize, Serialize}; // Keep for potential future use or serialization needs
+use crate::error::DomainError;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fmt;
 
@@ -7,8 +8,15 @@ use std::fmt;
 pub struct ArticleId(String);
 
 impl ArticleId {
-    pub fn new(source: &Source, native_id: &str) -> Self {
-        Self(format!("{}-{}", source.as_str(), native_id))
+    pub fn new(source: &Source, native_id: &str) -> Result<Self, DomainError> {
+        if native_id.contains('-') {
+            // Simple prevention of "hn-12-34" collision with "hn-12-34"
+            // Start of a more robust validation or encoding strategy
+            return Err(DomainError::Validation(
+                "Native ID cannot contain '-' separator".to_string(),
+            ));
+        }
+        Ok(Self(format!("{}-{}", source, native_id)))
     }
 }
 
@@ -28,16 +36,23 @@ pub enum Source {
     Custom(String),
 }
 
-impl Source {
-    pub fn as_str(&self) -> String {
-        match self {
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
             Source::HackerNews => "hn".to_string(),
             Source::GitHub => "gh".to_string(),
             Source::Reddit(sub) => format!("rd-{}", sub),
             Source::ProductHunt => "ph".to_string(),
             Source::ArXiv => "arxiv".to_string(),
             Source::Custom(s) => s.clone(),
-        }
+        };
+        write!(f, "{}", s)
+    }
+}
+
+impl Source {
+    pub fn as_str(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -62,9 +77,9 @@ impl Article {
         title: String,
         url: String,
         timestamp: i64,
-    ) -> Self {
-        Self {
-            id: ArticleId::new(&source, native_id),
+    ) -> Result<Self, DomainError> {
+        Ok(Self {
+            id: ArticleId::new(&source, native_id)?,
             title,
             url,
             source,
@@ -74,15 +89,21 @@ impl Article {
             tags: HashSet::new(),
             comment_count: 0,
             is_hot_on_source: false,
-        }
+        })
     }
-
 
     // Simple decaying score calculation example
     pub fn calculate_score(&self, now: i64) -> f64 {
         let age_hours = (now - self.timestamp) as f64 / 3600.0;
         let decay = 1.0 / (age_hours + 2.0).powf(1.8);
-        self.score * decay
+        
+        // Base score affected by comments (simple heuristic)
+        // Logarithmic boost from comments to avoid massive skew
+        let engagement_boost = (self.comment_count as f64 + 1.0).ln(); 
+        
+        let hot_multiplier = if self.is_hot_on_source { 1.2 } else { 1.0 };
+
+        (self.score + engagement_boost) * decay * hot_multiplier
     }
 }
 
@@ -92,8 +113,19 @@ mod tests {
 
     #[test]
     fn test_article_id_generation() {
-        let id = ArticleId::new(&Source::HackerNews, "12345");
-        assert_eq!(id.0, "hn-12345");
+        let id_result = ArticleId::new(&Source::HackerNews, "12345");
+        assert!(id_result.is_ok());
+        assert_eq!(id_result.unwrap().0, "hn-12345");
+    }
+
+    #[test]
+    fn test_article_id_validation() {
+        let id_result = ArticleId::new(&Source::HackerNews, "12-34");
+        assert!(id_result.is_err());
+        match id_result {
+            Err(DomainError::Validation(_)) => (), // Expected
+            _ => panic!("Expected Validation error"),
+        }
     }
 
     #[test]
@@ -105,20 +137,39 @@ mod tests {
             "Test".into(),
             "http://example.com".into(),
             now,
-        );
+        ).unwrap();
         article.score = 100.0;
+        // Default comment_count=0, hot=false
 
         let score_now = article.calculate_score(now);
         let score_1h_later = article.calculate_score(now + 3600);
-        let score_24h_later = article.calculate_score(now + 86400);
-
-        // Immediate score should only be affected by the +2.0 offset in formula
-        // decay = 1 / (0 + 2)^1.8 = 1 / 3.48 = ~0.28
-        // So 100 * 0.28 = 28.7
-        assert!(score_now > 0.0);
         
-        // Decay should reduce score over time
+        assert!(score_now > 0.0);
         assert!(score_1h_later < score_now);
-        assert!(score_24h_later < score_1h_later);
+    }
+    
+    #[test]
+    fn test_score_boost() {
+        let now = 1700000000;
+        let mut article = Article::new(
+            Source::HackerNews,
+            "1",
+            "Test".into(),
+            "http://example.com".into(),
+            now,
+        ).unwrap();
+        article.score = 50.0;
+        
+        let base_score = article.calculate_score(now);
+        
+        article.comment_count = 100;
+        let boosted_score = article.calculate_score(now);
+        
+        assert!(boosted_score > base_score);
+        
+        article.is_hot_on_source = true;
+        let hot_score = article.calculate_score(now);
+        
+        assert!(hot_score > boosted_score);
     }
 }

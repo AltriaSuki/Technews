@@ -1,4 +1,5 @@
 // Domain entities for Trends
+use crate::article::ArticleId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -8,7 +9,7 @@ pub struct Trend {
     pub score: f64,
     pub volume: u32,
     pub velocity: f64, // Change in volume/score over time
-    pub related_articles: Vec<String>, // Article IDs
+    pub related_articles: Vec<ArticleId>, // Article IDs
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
