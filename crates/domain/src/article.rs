@@ -18,18 +18,22 @@ impl ArticleId {
         // Prevent aliasing: Custom sources cannot look like standard ones
         match source {
             Source::Custom(s) => {
+                if s.trim().is_empty() {
+                     return Err(DomainError::Validation(
+                        "Custom source name cannot be empty".to_string(),
+                    ));
+                }
                 if s.contains('-') {
                     return Err(DomainError::Validation(
                         "Custom source name cannot contain '-'".to_string(),
                     ));
                 }
-                match s.as_str() {
-                    "hn" | "gh" | "ph" | "arxiv" => {
-                        return Err(DomainError::Validation(
-                            format!("Custom source cannot use reserved prefix '{}'", s)
-                        ));
-                    }
-                    _ => {}
+                
+                const RESERVED_PREFIXES: &[&str] = &["hn", "gh", "ph", "arxiv", "rd"];
+                if RESERVED_PREFIXES.contains(&s.as_str()) {
+                     return Err(DomainError::Validation(
+                        format!("Custom source cannot use reserved prefix '{}'", s)
+                    ));
                 }
             },
             Source::Reddit(s) if s.contains('-') => {
@@ -108,6 +112,7 @@ impl Article {
             is_hot_on_source: false,
         })
     }
+
     // Simple decaying score calculation example
     pub fn calculate_score(&self, now: i64) -> f64 {
         // Clamp age to 0 to prevent future-dated articles from getting infinite/huge scores
@@ -145,6 +150,10 @@ mod tests {
 
         // Custom source cannot use reserved prefix
         assert!(ArticleId::new(&Source::Custom("hn".into()), "123").is_err());
+        assert!(ArticleId::new(&Source::Custom("rd".into()), "123").is_err());
+        
+        // Custom source cannot be empty
+        assert!(ArticleId::new(&Source::Custom("".into()), "123").is_err());
         
         // Reddit subreddit cannot contain separator
         assert!(ArticleId::new(&Source::Reddit("sub-reddit".into()), "123").is_err());
