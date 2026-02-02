@@ -1,2 +1,2 @@
-pub mod fetch_feed;
-pub mod detect_trends;
+pub mod feed;
+pub mod trends;
