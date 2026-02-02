@@ -1,13 +1,14 @@
 use axum::{
     Json, Router,
     extract::{Query, State},
+    http::StatusCode,
+    response::IntoResponse,
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use techpulse_domain::article::Article;
 use techpulse_domain::trend::TrendReport;
-use techpulse_infra::repo::mem::{InMemoryArticleRepo, InMemoryTrendRepo};
 use techpulse_usecase::feed::GetChronologicalFeed;
 use techpulse_usecase::trends::CalculateTrends;
 
@@ -17,27 +18,7 @@ pub struct AppState {
     pub trends: Arc<CalculateTrends>,
 }
 
-impl AppState {
-    pub fn new() -> Self {
-        let article_repo = Arc::new(InMemoryArticleRepo::new());
-        let trend_repo = Arc::new(InMemoryTrendRepo::new());
-        
-        Self {
-            feed: Arc::new(GetChronologicalFeed::new(article_repo.clone())),
-            trends: Arc::new(CalculateTrends::new(article_repo, trend_repo)),
-        }
-    }
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub fn routes() -> Router {
-    let state = AppState::new();
-    
+pub fn routes(state: AppState) -> Router {
     Router::new()
         .route("/health", get(|| async { "OK" }))
         .route("/api/feed", get(get_feed))
@@ -75,20 +56,48 @@ impl From<Article> for ArticleDto {
             id: a.id.to_string(),
             title: a.title,
             url: a.url,
-            source: format!("{:?}", a.source),
+            source: a.source.to_string(),
             timestamp: a.timestamp,
         }
+    }
+}
+
+pub struct ApiError(String);
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> axum::response::Response {
+        (StatusCode::INTERNAL_SERVER_ERROR, self.0).into_response()
     }
 }
 
 async fn get_feed(
     State(state): State<AppState>,
     Query(params): Query<FeedQuery>,
-) -> Json<FeedResponse> {
-    let articles = state.feed.execute(params.limit).await.unwrap_or_default();
-    Json(FeedResponse {
+) -> Result<Json<FeedResponse>, ApiError> {
+    let limit = params.limit.min(100).max(1);
+    let articles = state
+        .feed
+        .execute(limit)
+        .await
+        .map_err(|e| ApiError(e.to_string()))?;
+    Ok(Json(FeedResponse {
         articles: articles.into_iter().map(ArticleDto::from).collect(),
-    })
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct TrendsRequest {
+    #[serde(default = "default_keywords")]
+    keywords: Vec<String>,
+}
+
+fn default_keywords() -> Vec<String> {
+    vec![
+        "Rust".to_string(),
+        "AI".to_string(),
+        "Cloud".to_string(),
+        "Crypto".to_string(),
+    ]
 }
 
 #[derive(Serialize)]
@@ -104,26 +113,91 @@ pub struct TrendDto {
     volume: u32,
 }
 
-async fn calculate_trends(State(state): State<AppState>) -> Json<TrendsResponse> {
-    let keywords = vec![
-        "Rust".to_string(),
-        "AI".to_string(),
-        "Cloud".to_string(),
-        "Crypto".to_string(),
-    ];
+async fn calculate_trends(
+    State(state): State<AppState>,
+    Json(body): Json<TrendsRequest>,
+) -> Result<Json<TrendsResponse>, ApiError> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-        
-    let report: TrendReport = state.trends.execute(&keywords, now).await.unwrap_or_default();
-    
-    Json(TrendsResponse {
+
+    let report: TrendReport = state
+        .trends
+        .execute(&body.keywords, now)
+        .await
+        .map_err(|e| ApiError(e.to_string()))?;
+
+    Ok(Json(TrendsResponse {
         timestamp: report.timestamp,
-        trends: report.trends.into_iter().map(|t| TrendDto {
-            keyword: t.keyword,
-            score: t.score,
-            volume: t.volume,
-        }).collect(),
-    })
+        trends: report
+            .trends
+            .into_iter()
+            .map(|t| TrendDto {
+                keyword: t.keyword,
+                score: t.score,
+                volume: t.volume,
+            })
+            .collect(),
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+    use techpulse_infra::repo::mem::{InMemoryArticleRepo, InMemoryTrendRepo};
+
+    fn test_state() -> AppState {
+        let article_repo = Arc::new(InMemoryArticleRepo::new());
+        let trend_repo = Arc::new(InMemoryTrendRepo::new());
+        AppState {
+            feed: Arc::new(GetChronologicalFeed::new(article_repo.clone())),
+            trends: Arc::new(CalculateTrends::new(article_repo, trend_repo)),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_health_endpoint() {
+        let app = routes(test_state());
+        let response = app
+            .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_feed_endpoint() {
+        let app = routes(test_state());
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/feed?limit=5")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_trends_endpoint() {
+        let app = routes(test_state());
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/trends/calculate")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"keywords":["Rust"]}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
 }
