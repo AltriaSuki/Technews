@@ -4,11 +4,11 @@ use techpulse_domain::error::DomainError;
 use techpulse_domain::repository::ArticleRepo;
 
 pub struct GetChronologicalFeed {
-    repo: Arc<dyn ArticleRepo + Send + Sync>,
+    repo: Arc<dyn ArticleRepo>,
 }
 
 impl GetChronologicalFeed {
-    pub fn new(repo: Arc<dyn ArticleRepo + Send + Sync>) -> Self {
+    pub fn new(repo: Arc<dyn ArticleRepo>) -> Self {
         Self { repo }
     }
 
